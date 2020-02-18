@@ -33,7 +33,7 @@ def start(
         stop(c)
 
     # Read template
-    template_path = Path(__file__).parent / "workers.sh"
+    template_path = Path(__file__).parents[1] / "scripts" / "workers.sh"
     with open(template_path, "r") as file:
         template = file.read()
 

@@ -29,13 +29,13 @@ except:
 
 
 def subprocess_cmd(cmd):
-    print("launch {}".format(cmd))
+    print("Launch {}".format(cmd))
 
     try:
         subprocess.check_output("{}".format(cmd), shell=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(
-            "command '{}' return with error (code {}): {}".format(
+            "Command '{}' return with error (code {}): {}".format(
                 e.cmd, e.returncode, e.output
             )
         )
