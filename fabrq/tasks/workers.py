@@ -1,73 +1,57 @@
+import os
 from pathlib import Path
 
 from fabric import task as task_fabric
 from invoke import run as run_invoke
 from invoke import task as task_invoke
 
+try:
+    REDIS_HOST = os.environ["REDIS_HOST"]
+except:
+    print("Environment variables should contain REDIS_HOST")
+try:
+    REDIS_PORT = os.environ["REDIS_PORT"]
+except:
+    print("Environment variables should contain REDIS_PORT")
+try:
+    REDIS_PASSWORD = os.environ["REDIS_PASSWORD"]
+except:
+    print("Environment variables should contain REDIS_PASSWORD")
+try:
+    REDIS_DB = os.environ["REDIS_DB"]
+except:
+    print("Environment variables should contain REDIS_DB")
+try:
+    REDIS_URL = os.environ["REDIS_URL"]
+except:
+    print("Environment variables should contain REDIS_URL")
+
 
 @task_fabric
-def start(
-    c,
+def start(c, 
     queue=None,
     conda_env=None,
-    num_workers="1",
-    slurm=False,
-    slurm_walltime="12:00:00",
-    kill_existing=False,
-):
-    """Starts workers on a given host listening to given queue (local/remote)
+    num_workers=None,
+    ):
+    assert queue is not None, "Specify queue"
+    assert conda_env is not None, "Specify conda env"
+    assert num_workers is not None, "Specify number of workers"
 
-    Workers are started within conda_env. Screen is used for persistence of the workers. 
+    for n in range(int(num_workers)):
+        worker_name = f"rq_worker_{n}_`hostname`_`whoami`_`date +%s`"
 
-    The number of workers can either be specified as a fixed positive number, or a negative number 
-    can be passed. If a negative number is passed, the number of workers will be equal to the number
-    of CPUs on the node minus |num_workers|. 
+        screen_cmd = f"screen -S {worker_name} -d -m bash -l -c"
+        source_bashrc = f"source ~/.bashrc"
+        set_env_vars = "export MKL_NUM_THREADS=1; export NUMEXPR_NUM_THREADS=1; export OMP_NUM_THREADS=1"
+        activate_venv = f"conda activate {conda_env}"
+        start_rq_worker = f"rq worker {queue} --url {REDIS_URL} --name {worker_name}"
 
-    The script also provides headers for running on slurm, however, this is currently untested. See
-    `workers.sh`.
-    """
-    if queue is None:
-        raise ValueError("Please specify queue")
-
-    if kill_existing:
-        stop(c)
-
-    # Read template
-    template_path = Path(__file__).parents[1] / "scripts" / "workers.sh"
-    with open(template_path, "r") as file:
-        template = file.read()
-
-    # Fill template with variables, save script
-    host = c.host if hasattr(c, "host") else "local"
-    script_path = Path(__file__).parent / "rq_workers_start.sh"
-    script = template.format(
-        conda_env=conda_env,
-        num_workers=num_workers,
-        queues=queue,
-        slurm_walltime=slurm_walltime,
-        user=c.user,
-        host=host,
-    )
-    with open(script_path, "w") as f:
-        f.writelines(script)
-
-    # Transfer script to remote
-    script_path_remote = "rq_workers_start.sh"
-    if hasattr(c, "put"):
-        c.put(script_path, script_path_remote)
-
-    # Execute
-    if not slurm:
-        c.run(f"bash -i {script_path_remote}; rm {script_path_remote}")
-    else:
-        c.run(f"srun {script_path_remote}; rm {script_path_remote}")
-
-    # Remove script
-    script_path.unlink()
+        cmd = f"{screen_cmd} '{source_bashrc}; {set_env_vars}; {activate_venv}; {start_rq_worker}'"
+        c.run(cmd)
 
 
 @task_fabric
 def stop(c):
-    """Run `pkill rqworker` (local/remote)
+    """Run `pkill rq_worker` (local/remote)
     """
-    c.run("pkill -f rqworker")
+    c.run("pkill -f rq_worker_*")

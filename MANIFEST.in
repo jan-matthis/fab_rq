@@ -1,3 +1,2 @@
 global-exclude *.pyc
 global-exclude __pycache__
-recursive-include fabrq/scripts/* *.sh
