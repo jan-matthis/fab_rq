@@ -1,6 +1,6 @@
 # fabrq
 
-Provides a couple of useful commands to manage [Redis Queue](https://python-rq.org) across hosts with [Fabric](http://www.fabfile.org), most notably starting and stoppping many workers at once. 
+Provides a couple of useful commands to manage [Redis Queue](https://python-rq.org) across hosts with [Fabric](http://www.fabfile.org), most notably starting and stopping many workers at once. 
 
 
 After cloning, install with:
