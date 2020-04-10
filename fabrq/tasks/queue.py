@@ -4,7 +4,8 @@ import subprocess
 from invoke import task
 from redis import Redis
 from rq import Queue
-from rq.registry import FailedJobRegistry, StartedJobRegistry
+from rq.registry import (FailedJobRegistry, FinishedJobRegistry,
+                         StartedJobRegistry)
 
 try:
     REDIS_HOST = os.environ["REDIS_HOST"]
@@ -80,6 +81,25 @@ def delete_started(c, queue=None):
         if job is not None and job.is_started:
             job.delete()
 
+@task
+def delete_finished(c, queue=None):
+    """Delete finished jobs from given queue
+    """
+    if queue is None:
+        raise ValueError("Please specify queue")
+
+    q = Queue(
+        queue,
+        connection=Redis(
+            host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, db=REDIS_DB
+        ),
+    )
+    registry = FinishedJobRegistry(queue=q)
+    for job_id in registry.get_job_ids():
+        job = q.fetch_job(job_id)
+        if job is not None and job.is_started:
+            job.delete()
+
 
 @task
 def delete_failed(c, queue=None):
@@ -107,6 +127,10 @@ def delete_queue(c, queue=None):
     """
     if queue is None:
         raise ValueError("Please specify queue")
+
+    delete_started(c, queue=queue)
+    delete_finished(c, queue=queue)
+    delete_failed(c, queue=queue)
 
     q = Queue(
         queue,
