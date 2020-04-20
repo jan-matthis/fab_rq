@@ -139,3 +139,48 @@ def delete_queue(c, queue=None):
         ),
     )
     q.delete()
+
+
+@task
+def requeue_started(c, queue=None):
+    """Requeue started jobs from given queue
+    """
+    if queue is None:
+        raise ValueError("Please specify queue")
+
+    q = Queue(
+        queue,
+        connection=Redis(
+            host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, db=REDIS_DB
+        ),
+    )
+    registry_started = StartedJobRegistry(queue=q)
+    registry_failed = FailedJobRegistry(queue=q)
+
+    for job_id in registry_started.get_job_ids():
+        job = q.fetch_job(job_id)
+        if job is not None and job.is_started:
+            registry_started.remove(job)
+            registry_failed.add(job, ttl=job.failure_ttl,
+                exc_string="Started job moved for requeuing")
+            job.requeue()
+
+
+@task
+def requeue_failed(c, queue=None):
+    """Requeue started jobs from given queue
+    """
+    if queue is None:
+        raise ValueError("Please specify queue")
+
+    q = Queue(
+        queue,
+        connection=Redis(
+            host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, db=REDIS_DB
+        ),
+    )
+    registry = FailedJobRegistry(queue=q)
+    for job_id in registry.get_job_ids():
+        job = q.fetch_job(job_id)
+        if job is not None:
+            job.requeue()
