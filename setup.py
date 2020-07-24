@@ -35,6 +35,6 @@ setup(
         "platform": "any",
         "python_requires": ">3.7.0",
         "url": "https://github.com/jan-matthis/fabrq",
-        "version": "0.1.0",
+        "version": "0.1.1",
     }
 )
